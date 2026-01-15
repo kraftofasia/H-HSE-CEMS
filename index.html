@@ -89,50 +89,45 @@
     </div>
 
     <script>
-        // THAY URL CỦA BẠN VÀO ĐÂY
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbyl175lEiJEnZzpc-whcEMU3j_jwXaXvZFfP4L-pQODnd9b4_3WWYSdVdmWNSw1i32G/exec';
+        // URL Web App của bạn
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbx1cGIRRt5wX0eqYOoKi4X8EK7zccOfaVX15FtO0J6nzKnMwnpk64vYko0G2tN1xqbp/exec';
         let allData = null;
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            if (event) event.target.classList.add('active');
+            if (event && event.target) event.target.classList.add('active');
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             if (allData) displayTabData(tabName, allData);
         }
 
-        // Thay đổi quan trọng: Gọi API bằng Fetch thay vì google.script.run
-function loadData() {
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Đang tải dữ liệu...</div>';
-    });
+        // Hàm loadData đã sửa lỗi CORS bằng cách sử dụng fetch đơn giản nhất
+        function loadData() {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Đang tải dữ liệu...</div>';
+            });
 
-    // Thêm tham số redirect: 'follow' để trình duyệt tự động đi theo luồng dữ liệu của Google
-    fetch(scriptUrl, {
-        method: 'GET',
-        mode: 'cors',
-        redirect: 'follow' 
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Mạng không ổn định');
-        return response.json();
-    })
-    .then(result => {
-        if (result.success) {
-            allData = result.data;
-            displayAllTabs(result.data);
-            updateStats(result.data);
-        } else {
-            showError(result.error);
+            // Sử dụng fetch không có header phức tạp để Google không chặn CORS
+            fetch(scriptUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Không thể kết nối với Script');
+                    return response.json();
+                })
+                .then(result => {
+                    if (result.success) {
+                        allData = result.data;
+                        displayAllTabs(result.data);
+                        updateStats(result.data);
+                    } else {
+                        showError(result.error || "Lỗi từ phía Server");
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    showError("Lỗi kết nối API hoặc xung đột tài khoản Google. Hãy thử F5 hoặc mở tab ẩn danh.");
+                });
         }
-    })
-    .catch(error => {
-        console.error('Fetch error:', error);
-        showError("Lỗi kết nối API. Hãy đảm bảo bạn đã Deploy Web App ở chế độ 'Anyone'.");
-    });
-}
 
-        /* GIỮ NGUYÊN CÁC HÀM LOGIC HIỂN THỊ CỦA BẠN */
         function displayAllTabs(data) {
             displayTabData('nuosxl', data);
             displayTabData('khiko1', data);
@@ -205,6 +200,3 @@ function loadData() {
     </script>
 </body>
 </html>
-
-
-
