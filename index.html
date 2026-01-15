@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quan Trắc Dữ Liệu</title>
+    <style>
+        /* GIỮ NGUYÊN TOÀN BỘ CSS CỦA BẠN */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; min-height: 100vh; }
+        .container { max-width: 100%; margin: 0 auto; background: white; }
+        .header { background: #1e88e5; color: white; padding: 20px 30px; border-bottom: 3px solid #1565c0; }
+        .header h1 { font-size: 1.5em; font-weight: 600; }
+        .controls { padding: 15px 30px; background: white; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .controls button { padding: 8px 20px; background: #1e88e5; color: white; border: none; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background 0.2s; font-size: 14px; }
+        .controls button:hover { background: #1565c0; }
+        .stats { display: flex; gap: 20px; align-items: center; }
+        .stat-item { display: flex; align-items: center; gap: 8px; color: #424242; font-size: 14px; }
+        .stat-value { background: #e3f2fd; color: #1565c0; padding: 4px 12px; border-radius: 4px; font-weight: 600; }
+        .tabs { display: flex; background: #fafafa; border-bottom: 2px solid #1e88e5; padding: 0 30px; }
+        .tab { padding: 15px 25px; cursor: pointer; border: none; background: none; font-size: 14px; font-weight: 500; color: #757575; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .tab:hover { color: #1e88e5; background: #e3f2fd; }
+        .tab.active { color: #1e88e5; border-bottom-color: #1e88e5; background: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .loading { text-align: center; padding: 60px; color: #757575; font-size: 1.1em; }
+        .loading-spinner { border: 3px solid #e3f2fd; border-top: 3px solid #1e88e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { background: #ffebee; color: #c62828; padding: 20px; margin: 20px; border-radius: 4px; border-left: 4px solid #c62828; }
+        .table-container { padding: 0 30px 20px 30px; overflow-x: auto; max-height: calc(100vh - 250px); overflow-y: auto; position: relative; }
+        table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e0e0e0; }
+        thead { background: #1e88e5; color: white; }
+        thead tr:first-child th { position: sticky; top: 0; z-index: 12; background: #1e88e5; }
+        thead tr.limit-row th { position: sticky; top: 45px; z-index: 11; background: #42a5f5; }
+        .limit-row { background: #42a5f5; color: white; font-weight: 500; font-style: italic; }
+        .limit-row th { background: #42a5f5; font-weight: 500; font-size: 12px; padding: 8px 12px; border-right: 1px solid rgba(255,255,255,0.1); }
+        th { padding: 12px; text-align: left; font-weight: 600; font-size: 13px; border-right: 1px solid rgba(255,255,255,0.1); background: #1e88e5; }
+        th:last-child { border-right: none; }
+        td { padding: 10px 12px; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #f5f5f5; color: #424242; font-size: 13px; }
+        td:last-child { border-right: none; }
+        tbody tr:hover { background-color: #e3f2fd; }
+        tbody tr:nth-child(even) { background-color: #fafafa; }
+        tbody tr:nth-child(even):hover { background-color: #e3f2fd; }
+        .timestamp { text-align: center; padding: 15px; color: #757575; font-size: 13px; background: #fafafa; border-top: 1px solid #e0e0e0; }
+        .value-cell { font-weight: 500; color: #212121; }
+        .time-cell { color: #1565c0; font-weight: 500; }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.2em; }
+            .controls { flex-direction: column; }
+            .stats { flex-direction: column; width: 100%; gap: 10px; }
+            .stat-item { width: 100%; justify-content: space-between; }
+            .tabs { overflow-x: auto; padding: 0 15px; }
+            .tab { padding: 12px 15px; font-size: 13px; }
+            table { font-size: 12px; }
+            th, td { padding: 8px; }
+            .table-container { padding: 15px; }
+        }
+        .empty-state { text-align: center; padding: 60px; color: #757575; }
+        .empty-state-icon { font-size: 4em; margin-bottom: 20px; opacity: 0.3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Hệ Thống Quan Trắc Dữ Liệu</h1>
+        </div>
+
+        <div class="controls">
+            <div class="stats">
+                <div class="stat-item">
+                    Tổng bản ghi: <span class="stat-value" id="totalRecords">0</span>
+                </div>
+                <div class="stat-item">
+                    Cập nhật: <span class="stat-value" id="lastUpdate">--:--</span>
+                </div>
+            </div>
+            <button onclick="loadData()">Tải lại dữ liệu</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('nuosxl')">Nước thải</button>
+            <button class="tab" onclick="switchTab('khiko1')">Khí thải 1</button>
+            <button class="tab" onclick="switchTab('cems2')">Khí thải 2</button>
+        </div>
+
+        <div id="nuosxl" class="tab-content active"><div class="loading"><div class="loading-spinner"></div>Đang tải...</div></div>
+        <div id="khiko1" class="tab-content"><div class="loading"><div class="loading-spinner"></div>Đang tải...</div></div>
+        <div id="cems2" class="tab-content"><div class="loading"><div class="loading-spinner"></div>Đang tải...</div></div>
+    </div>
+
+    <script>
+        // THAY URL CỦA BẠN VÀO ĐÂY
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbyloGkH7KIR_S-mL_wOxVvWjCIdXnl6JH-55WMtsjNubLmDuHoK_oSwzeaqUjTwThqY/exec';
+        let allData = null;
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            if (event) event.target.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            if (allData) displayTabData(tabName, allData);
+        }
+
+        // Thay đổi quan trọng: Gọi API bằng Fetch thay vì google.script.run
+        function loadData() {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Đang tải dữ liệu...</div>';
+            });
+
+            fetch(scriptUrl)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        allData = result.data;
+                        displayAllTabs(result.data);
+                        updateStats(result.data);
+                    } else {
+                        showError(result.error);
+                    }
+                })
+                .catch(error => showError("Lỗi kết nối API hoặc xung đột tài khoản Google."));
+        }
+
+        /* GIỮ NGUYÊN CÁC HÀM LOGIC HIỂN THỊ CỦA BẠN */
+        function displayAllTabs(data) {
+            displayTabData('nuosxl', data);
+            displayTabData('khiko1', data);
+            displayTabData('cems2', data);
+        }
+
+        function displayTabData(tabName, data) {
+            const contentDiv = document.getElementById(tabName);
+            if (!data || data.length === 0) {
+                contentDiv.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>Không có dữ liệu</h3></div>';
+                return;
+            }
+
+            let tagPattern = (tabName === 'khiko1') ? 'BV_GKOA_KHIKO1_' : (tabName === 'nuosxl' ? 'BV_GKOA_NUOSXL_' : 'cems2');
+            const filteredData = data.filter(row => row.tag === tagPattern);
+
+            if (filteredData.length === 0) {
+                contentDiv.innerHTML = `<div class="empty-state"><h3>Không có dữ liệu cho ${tagPattern}</h3></div>`;
+                return;
+            }
+
+            let allFields = new Set();
+            filteredData.forEach(row => { if (row.data) Object.keys(row.data).forEach(field => allFields.add(field)); });
+            const dataFields = Array.from(allFields).sort();
+
+            function renameField(field, tab) {
+                const mapNt = {'COD': 'COD (mg/l)', 'Color': 'Độ màu (Pt-Co)', 'Flowinnt': 'Lưu lượng vào (m3/h)', 'Flownt': 'Lưu lượng ra (m3/h)', 'NH4': 'NH4 (mg/l)', 'TSS': 'TSS (mg/l)', 'Tempnt': 'Nhiệt độ (oC)', 'pH': 'pH'};
+                const mapKt = {'CO': 'CO (mg/Nm3)', 'Flow': 'Lưu lượng (m3/h)', 'NOx': 'Nox (mg/Nm3)', 'O2': 'O2 (%)', 'PM': 'Bụi (mg/Nm3)', 'Press': 'Áp suất (kPa)', 'SO2': 'SO2 (mg/Nm3)', 'Temp': 'Nhiệt độ (oC)'};
+                return (tab === 'nuosxl' ? mapNt[field] : mapKt[field]) || field;
+            }
+
+            function getLimitValue(field, tab) {
+                const limNt = {'pH': '6 đến 9', 'Tempnt': '≤ 40', 'COD': '≤ 60.75', 'TSS': '≤ 40.5', 'NH4': '≤ 4.05', 'Color': '≤ 45'};
+                const limKt = {'O2': '0 đến 30', 'SO2': '0 đến 360', 'NOx': '0 đến 200', 'CO': '0 đến 720', 'PM': '0 đến 40', 'Press': '-10 đến 120'};
+                return (tab === 'nuosxl' ? limNt[field] : limKt[field]) || '-';
+            }
+
+            let html = '<div class="table-container"><table><thead><tr><th>Ngày giờ</th>';
+            dataFields.forEach(f => { html += `<th>${renameField(f, tabName)}</th>`; });
+            html += '</tr><tr class="limit-row"><th>Giới hạn</th>';
+            dataFields.forEach(f => { html += `<th>${getLimitValue(f, tabName)}</th>`; });
+            html += '</tr></thead><tbody>';
+
+            filteredData.forEach(row => {
+                html += `<tr><td class="time-cell">${row.time || 'N/A'}</td>`;
+                dataFields.forEach(f => {
+                    const val = (row.data && row.data[f]) ? (row.data[f].value !== undefined ? row.data[f].value : 'N/A') : 'N/A';
+                    html += `<td class="value-cell">${val}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            html += `<div class="timestamp">Cập nhật lúc: ${new Date().toLocaleString('vi-VN')}</div>`;
+            contentDiv.innerHTML = html;
+        }
+
+        function updateStats(data) {
+            document.getElementById('totalRecords').textContent = data.length;
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        }
+
+        function showError(msg) {
+            document.querySelectorAll('.tab-content').forEach(c => {
+                c.innerHTML = `<div class="error"><h3>Lỗi</h3><p>${msg}</p></div>`;
+            });
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
