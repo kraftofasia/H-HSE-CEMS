@@ -102,24 +102,35 @@
         }
 
         // Thay đổi quan trọng: Gọi API bằng Fetch thay vì google.script.run
-        function loadData() {
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Đang tải dữ liệu...</div>';
-            });
+function loadData() {
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.innerHTML = '<div class="loading"><div class="loading-spinner"></div>Đang tải dữ liệu...</div>';
+    });
 
-            fetch(scriptUrl)
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        allData = result.data;
-                        displayAllTabs(result.data);
-                        updateStats(result.data);
-                    } else {
-                        showError(result.error);
-                    }
-                })
-                .catch(error => showError("Lỗi kết nối API hoặc xung đột tài khoản Google."));
+    // Thêm tham số redirect: 'follow' để trình duyệt tự động đi theo luồng dữ liệu của Google
+    fetch(scriptUrl, {
+        method: 'GET',
+        mode: 'cors',
+        redirect: 'follow' 
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Mạng không ổn định');
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
+            allData = result.data;
+            displayAllTabs(result.data);
+            updateStats(result.data);
+        } else {
+            showError(result.error);
         }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        showError("Lỗi kết nối API. Hãy đảm bảo bạn đã Deploy Web App ở chế độ 'Anyone'.");
+    });
+}
 
         /* GIỮ NGUYÊN CÁC HÀM LOGIC HIỂN THỊ CỦA BẠN */
         function displayAllTabs(data) {
@@ -194,5 +205,6 @@
     </script>
 </body>
 </html>
+
 
 
